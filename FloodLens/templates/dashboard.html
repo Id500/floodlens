@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}Weather Intelligence - FLOODLENS{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h2 class="fw-bold mb-1 text-white">Hydrometeorological Intelligence</h2>
+    <p class="text-muted small mb-0">High-resolution Open-Meteo precipitation, wind vectors, and short-range cloudburst forecasts.</p>
+  </div>
+  <button class="btn btn-outline-glass btn-sm" onclick="loadWeatherData()">
+    <i class="bi bi-arrow-repeat me-1"></i> Refresh Forecast
+  </button>
+</div>
+
+<!-- CURRENT METEOROLOGICAL CONDITIONS GRID -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="glass-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <span class="text-muted small text-uppercase">Surface Temp</span>
+        <i class="bi bi-thermometer-half text-info fs-5"></i>
+      </div>
+      <div class="fs-2 fw-bold text-white"><span id="weather-temp">--</span> °C</div>
+      <div class="text-muted small" id="weather-feels">Feels like: -- °C</div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="glass-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <span class="text-muted small text-uppercase">Precipitation (24h)</span>
+        <i class="bi bi-cloud-rain text-primary fs-5"></i>
+      </div>
+      <div class="fs-2 fw-bold text-info"><span id="weather-precip-24h">--</span> mm</div>
+      <div class="text-muted small">48h Accum: <span id="weather-precip-48h">--</span> mm</div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="glass-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <span class="text-muted small text-uppercase">Peak Cloudburst Rate</span>
+        <i class="bi bi-cloud-lightning-rain text-warning fs-5"></i>
+      </div>
+      <div class="fs-2 fw-bold text-warning"><span id="weather-peak-intensity">--</span> mm/h</div>
+      <div class="text-muted small">Instantaneous flash runoff hazard</div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="glass-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <span class="text-muted small text-uppercase">Wind & Pressure</span>
+        <i class="bi bi-wind text-teal fs-5"></i>
+      </div>
+      <div class="fs-2 fw-bold text-white"><span id="weather-wind">--</span> km/h</div>
+      <div class="text-muted small">Pressure: <span id="weather-pressure">--</span> hPa</div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAILED CHARTS -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="glass-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-clock-history text-info"></i> 24-Hour Hourly Precipitation & Temperatures</h3>
+          <p class="card-subtitle">Hourly rainfall bars plotted with ambient temperature curve</p>
+        </div>
+      </div>
+      <div style="height: 340px; position: relative;">
+        <canvas id="weatherHourlyChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="glass-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-calendar3 text-info"></i> 7-Day Rainfall Accumulation Forecast</h3>
+          <p class="card-subtitle">Projected precipitation volume and peak rain probability</p>
+        </div>
+      </div>
+      <div style="height: 340px; position: relative;">
+        <canvas id="weatherDailyChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 7-DAY FORECAST CARDS -->
+<div class="glass-card mb-4">
+  <h3 class="card-title mb-3"><i class="bi bi-calendar-week text-info"></i> Seven-Day Meteorological Progression</h3>
+  <div class="row g-3" id="daily-forecast-cards-container">
+    <div class="col-12 text-center py-4 text-muted">Loading 7-day forecast cards...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    loadWeatherData();
+    window.addEventListener('fl:locationChanged', () => loadWeatherData());
+  });
+
+  function loadWeatherData() {
+    const loc = FLOODLENS.getLocation();
+    fetch(`/api/weather?lat=${loc.lat}&lon=${loc.lon}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error);
+        const data = res.data;
+
+        document.getElementById('weather-temp').textContent = data.current.temperature;
+        document.getElementById('weather-feels').textContent = `Feels like: ${data.current.apparent_temperature} °C • ${data.current.weather_description}`;
+        document.getElementById('weather-precip-24h').textContent = data.metrics.precip_24h_accum;
+        document.getElementById('weather-precip-48h').textContent = data.metrics.precip_48h_accum;
+        document.getElementById('weather-peak-intensity').textContent = data.metrics.peak_hourly_intensity;
+        document.getElementById('weather-wind').textContent = data.current.wind_speed;
+        document.getElementById('weather-pressure').textContent = data.current.pressure;
+
+        if (data.hourly_chart) {
+          FLOOD_CHARTS.renderHourlyChart('weatherHourlyChart', data.hourly_chart);
+        }
+
+        if (data.daily_forecast) {
+          FLOOD_CHARTS.renderDailyChart('weatherDailyChart', data.daily_forecast);
+          renderDailyCards(data.daily_forecast);
+        }
+      })
+      .catch(err => {
+        console.error("Error loading weather:", err);
+        FLOODLENS.showToast("Failed to fetch weather data: " + err.message, "error");
+      });
+  }
+
+  function renderDailyCards(days) {
+    const container = document.getElementById('daily-forecast-cards-container');
+    container.innerHTML = '';
+
+    days.forEach(d => {
+      const col = document.createElement('div');
+      col.className = 'col-lg col-md-4 col-sm-6';
+
+      const dateObj = new Date(d.date);
+      const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+      col.innerHTML = `
+        <div class="p-3 rounded text-center" style="background: rgba(16, 28, 56, 0.6); border: 1px solid rgba(56, 189, 248, 0.15);">
+          <div class="fw-bold text-white mb-1" style="font-size:0.85rem;">${dayName}</div>
+          <div class="small text-muted mb-2">${d.description}</div>
+          <div class="fw-bold text-info fs-5 mb-1">${d.precipitation_sum} <small class="text-muted" style="font-size:0.75rem;">mm</small></div>
+          <div class="small text-warning mb-2"><i class="bi bi-umbrella me-1"></i>${d.precipitation_probability_max}% prob</div>
+          <div class="d-flex justify-content-center gap-2 small border-top border-secondary pt-2">
+            <span class="text-danger">${d.temp_max}°</span>
+            <span class="text-muted">/</span>
+            <span class="text-primary">${d.temp_min}°</span>
+          </div>
+        </div>
+      `;
+      container.appendChild(col);
+    });
+  }
+</script>
+{% endblock %}
+

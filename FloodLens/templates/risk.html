@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+
+{% block title %}Explainable Flood Risk Engine - FLOODLENS{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h2 class="fw-bold mb-1 text-white">Explainable AI (XAI) Flood Risk Engine</h2>
+    <p class="text-muted small mb-0">Multi-factor hydrological heuristic with dynamic weight normalization and full attribution transparency.</p>
+  </div>
+  <button class="btn btn-outline-glass btn-sm" onclick="loadRiskAnalysis()">
+    <i class="bi bi-arrow-repeat me-1"></i> Re-evaluate Score
+  </button>
+</div>
+
+<!-- TOP CARDS: RISK SCORE & NATURAL LANGUAGE NARRATIVE -->
+<div class="row g-4 mb-4">
+  <!-- Risk Score Gauge Card -->
+  <div class="col-lg-4">
+    <div class="glass-card text-center h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="text-uppercase text-muted small fw-bold mb-2">Composite Flood Hazard Index</div>
+        <div class="risk-score-display text-white" id="risk-score-num">--</div>
+        <div class="fs-6 text-muted mb-3">out of 100 Maximum Risk</div>
+        <div>
+          <span class="badge-risk badge-low" id="risk-classification-badge" style="font-size: 0.95rem; padding: 8px 20px;">
+            CALCULATING
+          </span>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-top border-secondary text-start">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+          <span>Confidence Indicator:</span>
+          <strong class="text-info" id="risk-confidence-text">Evaluating</strong>
+        </div>
+        <div class="d-flex justify-content-between small text-muted">
+          <span>River Model Status:</span>
+          <span class="text-white small" id="risk-river-status">Checking</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Natural Language AI Diagnosis -->
+  <div class="col-lg-8">
+    <div class="glass-card h-100 d-flex flex-column">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-chat-left-quote text-info"></i> Automated Hydrological Diagnosis</h3>
+          <p class="card-subtitle">Synthesized narrative attributing primary hazard drivers</p>
+        </div>
+        <span class="badge bg-dark text-info">Natural Language Engine</span>
+      </div>
+      <div class="p-3 rounded mb-3 flex-grow-1" style="background: rgba(16, 28, 56, 0.7); border: 1px solid var(--border-subtle); line-height: 1.7;" id="risk-explanation-text">
+        Analyzing local precipitation, peak hourly cloudburst rates, upstream river discharge, and antecedent soil moisture trends...
+      </div>
+      <div class="d-flex align-items-center gap-2 text-muted small">
+        <i class="bi bi-shield-check text-success"></i>
+        <span>Mathematical multi-factor weighted scoring. No uncalibrated black-box hallucination.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FACTOR ATTRIBUTION: RADAR CHART + WEIGHTS BREAKDOWN -->
+<div class="row g-4 mb-4">
+  <!-- Radar Chart -->
+  <div class="col-lg-5">
+    <div class="glass-card h-100">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-radar text-info"></i> Factor Hazard Radar</h3>
+          <p class="card-subtitle">Normalized 0-100 hazard footprint across 5 core criteria</p>
+        </div>
+      </div>
+      <div style="height: 320px; position: relative;">
+        <canvas id="riskRadarChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transparent Factor Weights Table -->
+  <div class="col-lg-7">
+    <div class="glass-card h-100">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-table text-info"></i> Factor Breakdown & Point Attribution</h3>
+          <p class="card-subtitle">Full mathematical transparency behind composite scoring</p>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="glass-table">
+          <thead>
+            <tr>
+              <th>Risk Factor</th>
+              <th>Observed Value</th>
+              <th>Normalized (0-100)</th>
+              <th>Applied Weight</th>
+              <th>Points</th>
+            </tr>
+          </thead>
+          <tbody id="risk-factors-tbody">
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted">Loading factors...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CIVIL DEFENSE RECOMMENDATIONS -->
+<div class="glass-card">
+  <div class="card-header-flex">
+    <div>
+      <h3 class="card-title"><i class="bi bi-shield-shaded text-warning"></i> Actionable Civil Defense Advisories</h3>
+      <p class="card-subtitle">Targeted protective measures tailored to active risk severity</p>
+    </div>
+    <span class="badge bg-dark text-warning">Disaster Response Protocol</span>
+  </div>
+  <div class="row g-3" id="risk-recommendations-container">
+    <div class="col-12 text-muted text-center py-3">Loading advisories...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    loadRiskAnalysis();
+    window.addEventListener('fl:locationChanged', () => loadRiskAnalysis());
+  });
+
+  function loadRiskAnalysis() {
+    const loc = FLOODLENS.getLocation();
+    fetch(`/api/risk?lat=${loc.lat}&lon=${loc.lon}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error);
+        const data = res.data;
+
+        // Update Score and Badge
+        document.getElementById('risk-score-num').textContent = data.risk_score;
+        document.getElementById('risk-score-num').style.color = data.color_hex;
+
+        const badge = document.getElementById('risk-classification-badge');
+        badge.className = `badge-risk ${data.badge_class}`;
+        badge.textContent = `${data.classification} RISK`;
+
+        document.getElementById('risk-confidence-text').textContent = data.confidence;
+        document.getElementById('risk-river-status').textContent = data.river_status_note;
+        document.getElementById('risk-explanation-text').textContent = data.explanation;
+
+        // Render Radar Chart
+        if (data.contributing_factors) {
+          FLOOD_CHARTS.renderRiskRadar('riskRadarChart', data.contributing_factors);
+          renderFactorsTable(data.contributing_factors);
+        }
+
+        // Render Recommendations
+        if (data.recommendations) {
+          renderRecommendations(data.recommendations);
+        }
+      })
+      .catch(err => {
+        console.error("Error loading risk:", err);
+        FLOODLENS.showToast("Failed to calculate risk score: " + err.message, "error");
+      });
+  }
+
+  function renderFactorsTable(factors) {
+    const tbody = document.getElementById('risk-factors-tbody');
+    tbody.innerHTML = '';
+
+    factors.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <strong class="d-block text-white">${f.name}</strong>
+          <small class="text-muted" style="font-size:0.72rem;">${f.description}</small>
+        </td>
+        <td><span class="badge bg-dark text-info font-monospace">${f.raw_value}</span></td>
+        <td><strong>${f.factor_score}</strong></td>
+        <td>${f.weight_percent}%</td>
+        <td><span class="text-info fw-bold">+${f.weighted_points}</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderRecommendations(recs) {
+    const container = document.getElementById('risk-recommendations-container');
+    container.innerHTML = '';
+
+    recs.forEach((rec, idx) => {
+      const col = document.createElement('div');
+      col.className = 'col-md-6';
+      col.innerHTML = `
+        <div class="p-3 rounded d-flex align-items-start gap-3 h-100" style="background: rgba(16, 28, 56, 0.6); border: 1px solid var(--border-subtle);">
+          <div class="badge rounded-circle bg-warning text-dark p-2" style="width:28px; height:28px; display:flex; align-items:center; justify-content:center;">
+            ${idx + 1}
+          </div>
+          <div class="small text-white">${rec}</div>
+        </div>
+      `;
+      container.appendChild(col);
+    });
+  }
+</script>
+{% endblock %}
+

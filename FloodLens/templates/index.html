@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+
+{% block title %}Overview - NASA Flood Intelligence Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h2 class="fw-bold mb-1 text-white">Disaster Intelligence Command Center</h2>
+    <p class="text-muted small mb-0">Real-time fusion of NASA GIBS Earth observations, GloFAS river hydrographs, and Open-Meteo forecasts.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-glass btn-sm" onclick="loadDashboardData()">
+      <i class="bi bi-arrow-repeat me-1"></i> Refresh Stream
+    </button>
+    <a href="{{ url_for('map_page') }}" class="btn btn-cyan btn-sm">
+      <i class="bi bi-fullscreen me-1"></i> Fullscreen Map
+    </a>
+  </div>
+</div>
+
+<!-- LIVE RISK ALERT BANNER -->
+<div id="risk-alert-banner" class="glass-card mb-4 p-3 d-flex align-items-center gap-3" style="border-left: 4px solid var(--accent-cyan);">
+  <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+  <div class="flex-grow-1">
+    <span class="fw-semibold text-white" id="banner-headline">Initializing hydrological analysis...</span>
+    <p class="text-muted small mb-0" id="banner-explanation">Fetching real-time precipitation records and upstream basin discharge rates.</p>
+  </div>
+  <span class="badge-risk badge-low" id="banner-badge">CALCULATING</span>
+</div>
+
+<!-- 5 MAIN DASHBOARD KPI CARDS -->
+<div class="row g-3 mb-4">
+  <!-- 1. Risk Score -->
+  <div class="col-xl col-md-4 col-sm-6">
+    <div class="glass-card kpi-card">
+      <div class="kpi-icon-wrap kpi-blue" id="kpi-risk-icon">
+        <i class="bi bi-shield-exclamation"></i>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Flood Risk Score</div>
+        <div class="kpi-value"><span id="kpi-risk-score">--</span><span class="kpi-unit">/ 100</span></div>
+        <div class="kpi-subtext" id="kpi-confidence">Evaluating data...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Risk Classification -->
+  <div class="col-xl col-md-4 col-sm-6">
+    <div class="glass-card kpi-card">
+      <div class="kpi-icon-wrap kpi-amber" id="kpi-class-icon">
+        <i class="bi bi-exclamation-triangle"></i>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Risk Classification</div>
+        <div class="kpi-value" style="font-size: 1.35rem;" id="kpi-classification">--</div>
+        <div class="kpi-subtext" id="kpi-class-sub">Multi-factor Engine</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Rainfall Accumulation -->
+  <div class="col-xl col-md-4 col-sm-6">
+    <div class="glass-card kpi-card">
+      <div class="kpi-icon-wrap kpi-teal">
+        <i class="bi bi-cloud-rain"></i>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">24h Rainfall</div>
+        <div class="kpi-value"><span id="kpi-rainfall">--</span><span class="kpi-unit">mm</span></div>
+        <div class="kpi-subtext">Peak: <span id="kpi-peak-rain">--</span> mm/h</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Temperature -->
+  <div class="col-xl col-md-6 col-sm-6">
+    <div class="glass-card kpi-card">
+      <div class="kpi-icon-wrap kpi-blue">
+        <i class="bi bi-thermometer-half"></i>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Temperature</div>
+        <div class="kpi-value"><span id="kpi-temp">--</span><span class="kpi-unit">°C</span></div>
+        <div class="kpi-subtext" id="kpi-weather-desc">Relative Humidity: <span id="kpi-humidity">--</span>%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. River Discharge -->
+  <div class="col-xl col-md-6 col-sm-12">
+    <div class="glass-card kpi-card">
+      <div class="kpi-icon-wrap kpi-teal" id="kpi-river-icon">
+        <i class="bi bi-water"></i>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">River Discharge</div>
+        <div class="kpi-value"><span id="kpi-discharge">--</span><span class="kpi-unit" id="kpi-discharge-unit">m³/s</span></div>
+        <div class="kpi-subtext" id="kpi-discharge-note">GloFAS Catchment Mode</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS & GEOSPATIAL PREVIEW -->
+<div class="row g-4 mb-4">
+  <!-- 24-Hour Hydro-Meteorological Forecast Chart -->
+  <div class="col-lg-7">
+    <div class="glass-card h-100">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-graph-up text-info"></i> 24-Hour Precipitation & Temperature</h3>
+          <p class="card-subtitle">Hourly rainfall accumulation compared against surface temperatures</p>
+        </div>
+        <span class="badge bg-dark text-info">Open-Meteo API</span>
+      </div>
+      <div style="height: 340px; position: relative;">
+        <canvas id="overviewHourlyChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map Preview with Active Location & Community Markers -->
+  <div class="col-lg-5">
+    <div class="glass-card h-100 d-flex flex-column">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-geo-alt-fill text-info"></i> Geographic Monitoring View</h3>
+          <p class="card-subtitle">Interactive Leaflet viewport with real-time beacon</p>
+        </div>
+        <a href="{{ url_for('map_page') }}" class="btn btn-outline-glass btn-sm">Expand</a>
+      </div>
+      <div id="overview-map" style="height: 340px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-subtle);" class="flex-grow-1"></div>
+    </div>
+  </div>
+</div>
+
+<!-- LOWER SECTION: QUICK REPORTS & SCIENTIFIC CITATIONS -->
+<div class="row g-4">
+  <!-- Recent Community Reports -->
+  <div class="col-lg-8">
+    <div class="glass-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-megaphone text-info"></i> Recent Citizen Incident Reports</h3>
+          <p class="card-subtitle">Ground-truth crowdsourced observations (Labeled unverified until confirmed)</p>
+        </div>
+        <a href="{{ url_for('reports_page') }}" class="btn btn-outline-glass btn-sm">View All & Report</a>
+      </div>
+
+      <div class="table-responsive">
+        <table class="glass-table">
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Location</th>
+              <th>Water Depth</th>
+              <th>Description</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="overview-reports-body">
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted">Loading active reports...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Integrity & Data Sources Card -->
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <h3 class="card-title mb-3"><i class="bi bi-patch-check text-info"></i> Intelligence Engine Protocol</h3>
+      <ul class="list-unstyled d-flex flex-column gap-3 small text-muted">
+        <li class="d-flex align-items-start gap-2">
+          <i class="bi bi-satellite text-info mt-1"></i>
+          <div>
+            <strong class="text-white">NASA GIBS Satellite Integration</strong><br>
+            Near-real-time imagery layers via MODIS Terra (False Color 7-2-1) and VIIRS SNPP true-color mosaics.
+          </div>
+        </li>
+        <li class="d-flex align-items-start gap-2">
+          <i class="bi bi-calculator text-info mt-1"></i>
+          <div>
+            <strong class="text-white">Explainable Risk Attribution</strong><br>
+            Transparent weighted formulation balancing rainfall, peak burst intensity, upstream discharge, and antecedent soil saturation.
+          </div>
+        </li>
+        <li class="d-flex align-items-start gap-2">
+          <i class="bi bi-shield-lock text-info mt-1"></i>
+          <div>
+            <strong class="text-white">Scientific Disclaimer</strong><br>
+            NASA optical imagery reflects surface reflectance; it does not constitute automated flood extent delineation without radar (SAR) calibration.
+          </div>
+        </li>
+      </ul>
+      <div class="mt-4 pt-3 border-top border-secondary text-center">
+        <a href="{{ url_for('risk_page') }}" class="btn btn-cyan w-100">
+          <i class="bi bi-cpu me-1"></i> Inspect Risk Breakdown
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let overviewMap = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Leaflet preview map
+    overviewMap = FLOOD_MAP.init('overview-map', { zoom: 11, enableClickSelection: true });
+    
+    // Load initial data
+    loadDashboardData();
+    loadRecentReports();
+
+    // Listen for coordinate updates from modal or search
+    window.addEventListener('fl:locationChanged', () => {
+      loadDashboardData();
+    });
+  });
+
+  function loadDashboardData() {
+    const loc = FLOODLENS.getLocation();
+    
+    // 1. Fetch Risk Data (which calls weather & flood internally)
+    fetch(`/api/risk?lat=${loc.lat}&lon=${loc.lon}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error);
+        const data = res.data;
+
+        // Update Risk Score KPI
+        document.getElementById('kpi-risk-score').textContent = data.risk_score;
+        document.getElementById('kpi-classification').textContent = data.classification;
+        document.getElementById('kpi-classification').style.color = data.color_hex;
+        document.getElementById('kpi-confidence').textContent = data.confidence_level + ' Confidence';
+
+        // Update Alert Banner
+        const banner = document.getElementById('risk-alert-banner');
+        banner.style.borderLeftColor = data.color_hex;
+        document.getElementById('banner-headline').textContent = `${data.classification} FLOOD RISK LEVEL (${data.risk_score}/100)`;
+        document.getElementById('banner-explanation').textContent = data.explanation;
+        
+        const badge = document.getElementById('banner-badge');
+        badge.className = `badge-risk ${data.badge_class}`;
+        badge.textContent = data.classification;
+      })
+      .catch(err => {
+        console.error("Error loading risk:", err);
+      });
+
+    // 2. Fetch Weather Data for detailed charts & KPIs
+    fetch(`/api/weather?lat=${loc.lat}&lon=${loc.lon}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error);
+        const data = res.data;
+
+        document.getElementById('kpi-rainfall').textContent = data.metrics.precip_24h_accum;
+        document.getElementById('kpi-peak-rain').textContent = data.metrics.peak_hourly_intensity;
+        document.getElementById('kpi-temp').textContent = data.current.temperature;
+        document.getElementById('kpi-humidity').textContent = data.current.humidity;
+        document.getElementById('kpi-weather-desc').innerHTML = `${data.current.weather_description} &bull; Humidity: ${data.current.humidity}%`;
+
+        // Render Hourly Chart
+        if (data.hourly_chart) {
+          FLOOD_CHARTS.renderHourlyChart('overviewHourlyChart', data.hourly_chart);
+        }
+      })
+      .catch(err => console.error("Error loading weather:", err));
+
+    // 3. Fetch River Discharge
+    fetch(`/api/flood?lat=${loc.lat}&lon=${loc.lon}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error);
+        const data = res.data;
+
+        if (data.has_river_data && data.current_discharge_m3s !== null) {
+          document.getElementById('kpi-discharge').textContent = data.current_discharge_m3s;
+          document.getElementById('kpi-discharge-unit').textContent = 'm³/s';
+          document.getElementById('kpi-discharge-note').textContent = `Peak: ${data.peak_forecast_m3s || '--'} m³/s (${data.anomaly_ratio || 1.0}x baseline)`;
+        } else {
+          document.getElementById('kpi-discharge').textContent = 'N/A';
+          document.getElementById('kpi-discharge-unit').textContent = '';
+          document.getElementById('kpi-discharge-note').textContent = 'No major river station (Pluvial mode)';
+        }
+      })
+      .catch(err => console.error("Error loading flood data:", err));
+  }
+
+  function loadRecentReports() {
+    fetch('/api/reports?limit=5')
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.getElementById('overview-reports-body');
+        if (!data.success || !data.reports || data.reports.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">No community reports submitted yet.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = '';
+        data.reports.forEach(r => {
+          let badgeClass = 'badge-moderate';
+          if (r.severity === 'Minor') badgeClass = 'badge-low';
+          else if (r.severity === 'Severe') badgeClass = 'badge-high';
+          else if (r.severity === 'Critical') badgeClass = 'badge-severe';
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="badge-risk ${badgeClass}" style="font-size:0.7rem; padding:3px 8px;">${r.severity}</span></td>
+            <td><strong>${r.location_name}</strong></td>
+            <td><span class="text-info">${r.water_depth}</span></td>
+            <td><span class="text-muted small">${r.description.substring(0, 55)}${r.description.length > 55 ? '...' : ''}</span></td>
+            <td><small class="text-muted">${r.time_ago}</small></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+  }
+</script>
+{% endblock %}
+

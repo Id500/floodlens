@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+
+{% block title %}Community Flood Reports - FLOODLENS{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h2 class="fw-bold mb-1 text-white">Community Flood Reporting & Ground Validation</h2>
+    <p class="text-muted small mb-0">Crowdsourced local inundation alerts. All reports are labeled unverified until confirmed by emergency authorities.</p>
+  </div>
+  <button class="btn btn-cyan btn-sm" data-bs-toggle="collapse" data-bs-target="#newReportFormCollapse">
+    <i class="bi bi-plus-circle me-1"></i> Submit Flood Report
+  </button>
+</div>
+
+<!-- SUBMIT REPORT ACCORDION / FORM -->
+<div class="collapse mb-4" id="newReportFormCollapse">
+  <div class="glass-card" style="border: 1px solid var(--border-glow);">
+    <div class="card-header-flex">
+      <div>
+        <h3 class="card-title"><i class="bi bi-pencil-square text-info"></i> Submit Field Flood Observation</h3>
+        <p class="card-subtitle">Help civil protection responders track localized waterlogging and rising flood levels</p>
+      </div>
+      <button type="button" class="btn-close btn-close-white" data-bs-toggle="collapse" data-bs-target="#newReportFormCollapse"></button>
+    </div>
+
+    <form id="community-report-form" class="row g-3">
+      <div class="col-md-6">
+        <label class="small text-muted mb-1 fw-bold">Specific Location / Street Landmark *</label>
+        <input type="text" id="report-loc-name" name="location_name" class="glass-input" placeholder="e.g. 100ft Velachery Bypass Rd, near Shell Petrol Pump" required>
+      </div>
+
+      <div class="col-md-3">
+        <label class="small text-muted mb-1 fw-bold">Latitude *</label>
+        <input type="number" step="0.0001" id="report-lat" name="latitude" class="glass-input" required>
+      </div>
+
+      <div class="col-md-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="small text-muted fw-bold">Longitude *</label>
+          <a href="javascript:void(0)" class="text-info small" onclick="fillActiveCoordinates()">Use Active Coords</a>
+        </div>
+        <input type="number" step="0.0001" id="report-lon" name="longitude" class="glass-input" required>
+      </div>
+
+      <div class="col-md-4">
+        <label class="small text-muted mb-1 fw-bold">Inundation Severity *</label>
+        <select id="report-severity" name="severity" class="glass-select">
+          <option value="Minor">Minor (Ponding, drains overflowing slowly)</option>
+          <option value="Moderate" selected>Moderate (Water on roadways, vehicles cautious)</option>
+          <option value="Severe">Severe (Water in houses/compounds, traffic blocked)</option>
+          <option value="Critical">Critical (Life hazard, rapidly rising torrent)</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="small text-muted mb-1 fw-bold">Estimated Water Depth</label>
+        <select id="report-depth" name="water_depth" class="glass-select">
+          <option value="Ankle deep (< 15cm)">Ankle deep (&lt; 15cm)</option>
+          <option value="Knee deep (15-50cm)" selected>Knee deep (15-50cm)</option>
+          <option value="Waist deep (50-100cm)">Waist deep (50-100cm)</option>
+          <option value="Submerged (> 100cm)">Submerged (&gt; 100cm)</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="small text-muted mb-1 fw-bold">Reporter Name (Optional)</label>
+        <input type="text" id="report-name" name="reporter_name" class="glass-input" placeholder="Anonymous Citizen or Organization">
+      </div>
+
+      <div class="col-md-8">
+        <label class="small text-muted mb-1 fw-bold">Description of Conditions *</label>
+        <textarea id="report-desc" name="description" rows="2" class="glass-textarea" placeholder="Detail cause (canal breach, blocked culvert, storm drain overflow) and stranded persons/vehicles..." required></textarea>
+      </div>
+
+      <div class="col-md-4">
+        <label class="small text-muted mb-1 fw-bold">Field Photo (Optional)</label>
+        <input type="file" id="report-image" name="image" class="glass-input" accept="image/*">
+      </div>
+
+      <div class="col-12 text-end border-top border-secondary pt-3">
+        <button type="submit" class="btn btn-cyan px-4" id="submit-report-btn">
+          <i class="bi bi-send me-1"></i> Submit Report
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="glass-card mb-4 p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+  <div class="d-flex align-items-center gap-2">
+    <span class="text-muted small fw-bold">Filter By Severity:</span>
+    <div class="btn-group btn-group-sm" role="group">
+      <button type="button" class="btn btn-outline-glass active" onclick="filterReports('all', this)">All</button>
+      <button type="button" class="btn btn-outline-glass" onclick="filterReports('Minor', this)">Minor</button>
+      <button type="button" class="btn btn-outline-glass" onclick="filterReports('Moderate', this)">Moderate</button>
+      <button type="button" class="btn btn-outline-glass" onclick="filterReports('Severe', this)">Severe</button>
+      <button type="button" class="btn btn-outline-glass" onclick="filterReports('Critical', this)">Critical</button>
+    </div>
+  </div>
+  <div class="text-muted small">
+    Showing verified &amp; crowdsourced reports across active catchments
+  </div>
+</div>
+
+<!-- REPORTS FEED -->
+<div class="row g-4" id="reports-cards-container">
+  {% for r in reports %}
+  <div class="col-lg-6 report-card-item" data-severity="{{ r.severity }}">
+    <div class="glass-card h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge-risk {% if r.severity == 'Minor' %}badge-low{% elif r.severity == 'Moderate' %}badge-moderate{% elif r.severity == 'Severe' %}badge-high{% else %}badge-severe{% endif %}" style="font-size:0.75rem;">
+              {{ r.severity }}
+            </span>
+            <span class="badge bg-dark text-danger border border-danger small" style="font-size: 0.65rem;">Unverified Report</span>
+          </div>
+          <small class="text-muted">{{ r.time_ago }}</small>
+        </div>
+
+        <h4 class="text-white fs-6 mb-1 fw-bold">{{ r.location_name }}</h4>
+        <div class="small text-muted font-monospace mb-2">
+          <i class="bi bi-geo-alt text-info me-1"></i> {{ r.latitude }}°, {{ r.longitude }}°
+        </div>
+
+        <div class="p-2 rounded mb-2 small" style="background: rgba(16, 28, 56, 0.6);">
+          <strong class="text-info">Water Depth:</strong> {{ r.water_depth }}
+        </div>
+
+        <p class="small text-white mb-2" style="line-height: 1.6;">{{ r.description }}</p>
+
+        {% if r.image_filename %}
+        <div class="mt-2 mb-2">
+          <img src="{{ url_for('uploaded_file', filename=r.image_filename) }}" alt="Field Photo" class="img-fluid rounded" style="max-height: 180px; width: 100%; object-fit: cover; border: 1px solid var(--border-subtle);">
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="border-top border-secondary pt-2 mt-2 d-flex justify-content-between align-items-center small text-muted">
+        <span>Reported by: <strong class="text-white">{{ r.reporter_name }}</strong></span>
+        <button class="btn btn-outline-glass btn-sm py-0 px-2" style="font-size:0.72rem;" onclick="focusOnReport({{ r.latitude }}, {{ r.longitude }}, '{{ r.location_name }}')">
+          <i class="bi bi-geo-alt me-1"></i> Inspect on Map
+        </button>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12 text-center py-5 text-muted">
+    No community reports recorded yet. Be the first to submit a local flood observation.
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function fillActiveCoordinates() {
+    const loc = FLOODLENS.getLocation();
+    document.getElementById('report-lat').value = loc.lat;
+    document.getElementById('report-lon').value = loc.lon;
+    if (!document.getElementById('report-loc-name').value) {
+      document.getElementById('report-loc-name').value = loc.name;
+    }
+  }
+
+  function focusOnReport(lat, lon, name) {
+    FLOODLENS.setLocation(lat, lon, name);
+    window.location.href = "{{ url_for('map_page') }}";
+  }
+
+  function filterReports(severity, btn) {
+    // Update button active states
+    document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const items = document.querySelectorAll('.report-card-item');
+    items.forEach(item => {
+      if (severity === 'all' || item.getAttribute('data-severity').toLowerCase() === severity.toLowerCase()) {
+        item.style.display = 'block';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  }
+
+  // Handle Form Submission asynchronously
+  document.getElementById('community-report-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById('submit-report-btn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Submitting...`;
+
+    const formData = new FormData(this);
+
+    fetch('/api/reports', {
+      method: 'POST',
+      body: formData
+    })
+      .then(res => res.json())
+      .then(res => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="bi bi-send me-1"></i> Submit Report`;
+
+        if (!res.success) {
+          alert("Submission failed: " + res.error);
+          return;
+        }
+
+        FLOODLENS.showToast("Report submitted successfully. Labeled as unverified.", "success");
+        // Reset form & collapse
+        this.reset();
+        const collapseEl = document.getElementById('newReportFormCollapse');
+        const bsCollapse = bootstrap.Collapse.getInstance(collapseEl);
+        if (bsCollapse) bsCollapse.hide();
+
+        // Reload page or prepend card
+        setTimeout(() => window.location.reload(), 1000);
+      })
+      .catch(err => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="bi bi-send me-1"></i> Submit Report`;
+        alert("Error submitting report: " + err.message);
+      });
+  });
+</script>
+{% endblock %}
+

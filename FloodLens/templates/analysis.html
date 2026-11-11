@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+
+{% block title %}Satellite Image Analysis (OpenCV) - FLOODLENS{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h2 class="fw-bold mb-1 text-white">Satellite Image Analysis (OpenCV)</h2>
+    <p class="text-muted small mb-0">Multi-spectral thresholding, water-region segmentation, contour extraction, and image quality diagnostics.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-glass btn-sm" onclick="loadSampleImage()">
+      <i class="bi bi-image me-1"></i> Load Test Satellite Image
+    </button>
+  </div>
+</div>
+
+<!-- UPLOAD ZONE -->
+<div class="glass-card mb-4">
+  <div class="card-header-flex">
+    <div>
+      <h3 class="card-title"><i class="bi bi-cloud-arrow-up text-info"></i> Upload Satellite or Aerial Imagery</h3>
+      <p class="card-subtitle">Supported formats: JPG, PNG, TIFF (Max 16 MB). Tested on true-color and false-color satellite scenes.</p>
+    </div>
+    <span class="badge bg-dark text-info"><i class="bi bi-shield-check me-1"></i> Client-Side Safe</span>
+  </div>
+
+  <form id="image-upload-form" class="row g-3 align-items-center">
+    <div class="col-md-6">
+      <input type="file" id="image-file-input" class="glass-input" accept=".jpg,.jpeg,.png,.tif,.tiff" onchange="previewSelectedImage(event)">
+      <div id="file-chosen-info" class="small text-muted mt-1 d-none">
+        <i class="bi bi-check2-circle text-success me-1"></i> <span id="file-chosen-name">No file selected</span>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <button type="button" class="btn btn-outline-glass w-100" onclick="loadSampleImage()">
+        <i class="bi bi-lightning-charge text-warning me-1"></i> Use Sample Image
+      </button>
+    </div>
+    <div class="col-md-3">
+      <button type="submit" class="btn btn-cyan w-100" id="analyze-btn">
+        <i class="bi bi-cpu me-1"></i> Analyze Image
+      </button>
+    </div>
+  </form>
+
+  <!-- Live Selected File Preview (Before Analysis) -->
+  <div id="pre-upload-preview" class="mt-3 p-3 rounded d-none" style="background: rgba(11, 19, 43, 0.6); border: 1px dashed var(--border-subtle);">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <span class="small text-muted fw-bold">Selected Image Preview:</span>
+      <button type="button" class="btn btn-sm btn-outline-glass py-0 px-2" style="font-size:0.75rem;" onclick="clearPreUpload()">Clear</button>
+    </div>
+    <div class="text-center">
+      <img id="pre-upload-img" src="" alt="Selected Preview" class="rounded" style="max-height: 220px; max-width: 100%; object-fit: contain; border: 1px solid var(--border-subtle);">
+    </div>
+  </div>
+</div>
+
+<!-- LOADING SPINNER BANNER -->
+<div id="analysis-spinner-banner" class="glass-card mb-4 p-4 text-center d-none" style="border: 1px solid var(--accent-cyan);">
+  <div class="spinner-border text-info mb-2" role="status" style="width: 2.5rem; height: 2.5rem;"></div>
+  <h5 class="text-white mb-1">Executing OpenCV Computer Vision Pipeline...</h5>
+  <p class="text-muted small mb-0">Computing Laplacian variance, HSV spectral thresholds, morphological filters, and water surface area extraction.</p>
+</div>
+
+<!-- ANALYSIS RESULTS SECTION (Hidden until analyzed) -->
+<div id="analysis-results-section" class="d-none">
+  <!-- METRICS & QUALITY DIAGNOSTICS ROW -->
+  <div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+      <div class="glass-card">
+        <div class="text-muted small text-uppercase mb-1">Water Surface Coverage</div>
+        <div class="fs-2 fw-bold text-info"><span id="metric-water-pct">--</span> <small class="text-muted fs-6">%</small></div>
+        <div class="text-muted small">Candidate water & inundation pixels</div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="glass-card">
+        <div class="text-muted small text-uppercase mb-1">Detected Water Bodies</div>
+        <div class="fs-2 fw-bold text-white"><span id="metric-regions-count">--</span></div>
+        <div class="text-muted small">Contours exceeding area threshold</div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="glass-card">
+        <div class="text-muted small text-uppercase mb-1">Image Quality Score</div>
+        <div class="fs-2 fw-bold text-warning"><span id="metric-quality-score">--</span> <small class="text-muted fs-6">/ 100</small></div>
+        <div class="text-muted small" id="metric-quality-desc">Sharpness & contrast rating</div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="glass-card">
+        <div class="text-muted small text-uppercase mb-1">Confidence Indicator</div>
+        <div class="fs-6 fw-bold text-white mt-1 mb-1" id="metric-confidence">Evaluating</div>
+        <div class="text-muted small">Heuristic optical classification</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDE-BY-SIDE IMAGE COMPARISON -->
+  <div class="row g-4 mb-4">
+    <!-- Original Image -->
+    <div class="col-lg-6">
+      <div class="glass-card h-100">
+        <div class="card-header-flex">
+          <div>
+            <h4 class="card-title fs-6"><i class="bi bi-image text-muted"></i> Original Uploaded Imagery</h4>
+            <p class="card-subtitle" id="original-image-dims">Dimensions: -- x --</p>
+          </div>
+          <span class="badge bg-dark text-muted">Raw Input</span>
+        </div>
+        <div class="text-center p-2 rounded" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); overflow:hidden; min-height: 340px; display: flex; align-items: center; justify-content: center;">
+          <img id="display-original-img" src="" alt="Original Satellite View" class="img-fluid rounded" style="max-height: 460px; object-fit: contain;">
+        </div>
+      </div>
+    </div>
+
+    <!-- OpenCV Processed Overlay -->
+    <div class="col-lg-6">
+      <div class="glass-card h-100">
+        <div class="card-header-flex">
+          <div>
+            <h4 class="card-title fs-6"><i class="bi bi-magic text-info"></i> OpenCV Segmented Water Mask</h4>
+            <p class="card-subtitle">Cyan tint overlay with highlighted yellow contour boundaries</p>
+          </div>
+          <span class="badge bg-primary text-white">Processed</span>
+        </div>
+        <div class="text-center p-2 rounded" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-glow); overflow:hidden; min-height: 340px; display: flex; align-items: center; justify-content: center;">
+          <img id="display-processed-img" src="" alt="Processed Water Mask" class="img-fluid rounded" style="max-height: 460px; object-fit: contain;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIAGNOSTICS & SCIENTIFIC DISCLAIMER -->
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="glass-card">
+        <h4 class="card-title fs-6 mb-3"><i class="bi bi-sliders text-info"></i> Detailed Quality Diagnostics</h4>
+        <div class="table-responsive">
+          <table class="glass-table">
+            <tbody>
+              <tr>
+                <td class="text-muted">Sharpness (Laplacian Variance):</td>
+                <td><strong id="diag-sharpness">--</strong> (<span id="diag-sharpness-status">--</span>)</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Mean Brightness:</td>
+                <td><strong id="diag-brightness">--</strong> / 255 (<span id="diag-brightness-status">--</span>)</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Contrast Standard Deviation:</td>
+                <td><strong id="diag-contrast">--</strong> (<span id="diag-contrast-status">--</span>)</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Total Water Pixels:</td>
+                <td><strong id="diag-water-pixels" class="text-info font-monospace">--</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="glass-card" style="border-left: 4px solid var(--accent-cyan);">
+        <h4 class="card-title fs-6 mb-2"><i class="bi bi-shield-exclamation text-warning"></i> Scientific Limitations & Context</h4>
+        <div class="alert alert-dark border-0 p-3 mb-2" style="background: rgba(16, 28, 56, 0.8);">
+          <p class="small text-white mb-0" id="disclaimer-text">
+            EXPERIMENTAL COMPUTER VISION SEGMENTATION: This analysis utilizes OpenCV spectral heuristics and color segmentation. It does NOT constitute scientifically certified flood extent mapping. Optical imagery is vulnerable to cloud shadows, asphalt, and terrain shade misclassification.
+          </p>
+        </div>
+        <p class="text-muted small mb-0">
+          For certified disaster relief actions, cross-reference with Copernicus Sentinel-1 SAR (Radar) which penetrates cloud decks and maps surface water extent unhampered by weather.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('image-upload-form');
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById('image-file-input');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert("Please select an image file to analyze or click 'Use Sample Image'.");
+        return;
+      }
+      uploadAndAnalyze(fileInput.files[0]);
+    });
+  });
+
+  function previewSelectedImage(event) {
+    const file = event.target.files[0];
+    if (file) {
+      document.getElementById('file-chosen-info').classList.remove('d-none');
+      document.getElementById('file-chosen-name').textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('pre-upload-img').src = e.target.result;
+        document.getElementById('pre-upload-preview').classList.remove('d-none');
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  function clearPreUpload() {
+    document.getElementById('image-file-input').value = '';
+    document.getElementById('pre-upload-preview').classList.add('d-none');
+    document.getElementById('file-chosen-info').classList.add('d-none');
+  }
+
+  function uploadAndAnalyze(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const btn = document.getElementById('analyze-btn');
+    const spinnerBanner = document.getElementById('analysis-spinner-banner');
+    
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Processing...`;
+    spinnerBanner.classList.remove('d-none');
+    spinnerBanner.scrollIntoView({ behavior: 'smooth' });
+
+    fetch('/api/analyze-image', {
+      method: 'POST',
+      body: formData
+    })
+      .then(res => res.json())
+      .then(res => {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-cpu me-1"></i> Analyze Image`;
+        spinnerBanner.classList.add('d-none');
+
+        if (!res.success) {
+          alert("Error: " + (res.error || "Analysis failed"));
+          return;
+        }
+
+        renderAnalysisResults(res);
+        FLOODLENS.showToast("Satellite image processed successfully!", "success");
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-cpu me-1"></i> Analyze Image`;
+        spinnerBanner.classList.add('d-none');
+        alert("Analysis request failed: " + err.message);
+      });
+  }
+
+  function renderAnalysisResults(data) {
+    document.getElementById('analysis-results-section').classList.remove('d-none');
+
+    // Display images
+    document.getElementById('display-original-img').src = data.original_image_url;
+    document.getElementById('display-processed-img').src = data.processed_image_url;
+
+    // Dimensions
+    const dims = data.image_dimensions;
+    document.getElementById('original-image-dims').textContent = `Resolution: ${dims.width} x ${dims.height} (${dims.megapixels} MP)`;
+
+    // Metrics
+    const water = data.water_detection;
+    document.getElementById('metric-water-pct').textContent = water.water_coverage_percentage;
+    document.getElementById('metric-regions-count').textContent = water.detected_regions_count;
+    document.getElementById('metric-confidence').textContent = water.confidence_label;
+
+    const diag = data.quality_diagnostics;
+    document.getElementById('metric-quality-score').textContent = diag.quality_score;
+    document.getElementById('metric-quality-desc').textContent = `${diag.sharpness_status} • ${diag.contrast_status} Contrast`;
+
+    // Detailed Diagnostics
+    document.getElementById('diag-sharpness').textContent = diag.sharpness_var;
+    document.getElementById('diag-sharpness-status').textContent = diag.sharpness_status;
+    document.getElementById('diag-brightness').textContent = diag.brightness_mean;
+    document.getElementById('diag-brightness-status').textContent = diag.brightness_status;
+    document.getElementById('diag-contrast').textContent = diag.contrast_std;
+    document.getElementById('diag-contrast-status').textContent = diag.contrast_status;
+    document.getElementById('diag-water-pixels').textContent = water.water_pixel_count.toLocaleString() + ' px';
+
+    // Disclaimer
+    if (data.scientific_disclaimer) {
+      document.getElementById('disclaimer-text').textContent = data.scientific_disclaimer;
+    }
+
+    // Smooth scroll down to results
+    document.getElementById('analysis-results-section').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function loadSampleImage() {
+    FLOODLENS.showToast("Fetching test satellite image...", "info");
+    fetch('/static/images/sample_satellite.jpg')
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], "sample_satellite.jpg", { type: "image/jpeg" });
+        
+        // Show in preview
+        document.getElementById('file-chosen-info').classList.remove('d-none');
+        document.getElementById('file-chosen-name').textContent = `sample_satellite.jpg (Test Dataset)`;
+        document.getElementById('pre-upload-img').src = '/static/images/sample_satellite.jpg';
+        document.getElementById('pre-upload-preview').classList.remove('d-none');
+        
+        uploadAndAnalyze(file);
+      })
+      .catch(err => {
+        alert("Could not load sample image: " + err.message);
+      });
+  }
+</script>
+{% endblock %}

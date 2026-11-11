@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+
+{% block title %}River Discharge - FLOODLENS{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h2 class="fw-bold mb-1 text-white">River Discharge & Catchment Hydrograph</h2>
+    <p class="text-muted small mb-0">Open-Meteo Global Flood API based on Copernicus GloFAS (Global Flood Awareness System) hydrological routing.</p>
+  </div>
+  <button class="btn btn-outline-glass btn-sm" onclick="loadRiverData()">
+    <i class="bi bi-arrow-repeat me-1"></i> Refresh Hydrograph
+  </button>
+</div>
+
+<!-- DISCHARGE SUMMARY STATS -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="glass-card">
+      <div class="text-muted small text-uppercase mb-1">Current Discharge</div>
+      <div class="fs-2 fw-bold text-white"><span id="river-current">--</span> <small class="text-muted fs-6">m³/s</small></div>
+      <div class="text-muted small" id="river-status-indicator">Catchment routing</div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="glass-card">
+      <div class="text-muted small text-uppercase mb-1">Forecast Peak (7 Days)</div>
+      <div class="fs-2 fw-bold text-info"><span id="river-peak">--</span> <small class="text-muted fs-6">m³/s</small></div>
+      <div class="text-muted small">Anticipated crest volume</div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="glass-card">
+      <div class="text-muted small text-uppercase mb-1">Historical Seasonal Mean</div>
+      <div class="fs-2 fw-bold text-white"><span id="river-mean">--</span> <small class="text-muted fs-6">m³/s</small></div>
+      <div class="text-muted small">Long-term climatological baseline</div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="glass-card">
+      <div class="text-muted small text-uppercase mb-1">Discharge Anomaly</div>
+      <div class="fs-2 fw-bold text-warning"><span id="river-anomaly">--</span></div>
+      <div class="text-muted small">Ratio vs seasonal normal</div>
+    </div>
+  </div>
+</div>
+
+<!-- NO RIVER DATA NOTICE (Dynamically shown if coordinates don't have river basin) -->
+<div id="no-river-alert" class="glass-card mb-4 p-4 text-center d-none" style="border: 1px dashed var(--accent-cyan);">
+  <i class="bi bi-water text-info fs-1 mb-2 d-block"></i>
+  <h4 class="text-white mb-2">No GloFAS Modeled River Reach at this Exact Coordinate</h4>
+  <p class="text-muted small max-w-600 mx-auto mb-3" id="no-river-msg">
+    The Open-Meteo / GloFAS river grid models major river channels and river basins. Many coastal locations, urban centers, and small micro-catchments do not have a major monitored river channel.
+  </p>
+  <div class="badge bg-dark text-info p-2 px-3">
+    Risk Engine automatically adjusts weighting to prioritize pluvial precipitation, storm drains, and surface runoff.
+  </div>
+</div>
+
+<!-- 14-DAY HYDROGRAPH CHART -->
+<div class="glass-card mb-4" id="river-chart-card">
+  <div class="card-header-flex">
+    <div>
+      <h3 class="card-title"><i class="bi bi-water text-info"></i> 14-Day River Discharge Hydrograph (Past 7 Days + Forecast 7 Days)</h3>
+      <p class="card-subtitle">Channel flow volume in cubic meters per second (m³/s) compared with historical seasonal baseline</p>
+    </div>
+    <span class="badge bg-dark text-info">Copernicus GloFAS Model</span>
+  </div>
+  <div style="height: 380px; position: relative;">
+    <canvas id="riverHydrographChart"></canvas>
+  </div>
+</div>
+
+<!-- HYDROLOGICAL METHODOLOGY -->
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="glass-card">
+      <h3 class="card-title mb-2"><i class="bi bi-info-circle text-info"></i> GloFAS Hydrodynamic Modeling</h3>
+      <p class="text-muted small">
+        The Global Flood Awareness System (GloFAS) is co-developed by the European Commission and the European Centre for Medium-Range Weather Forecasts (ECMWF). It routes runoff from numerical weather prediction forecasts through a global river network model with a 0.1° (~10 km) grid resolution.
+      </p>
+      <p class="text-muted small mb-0">
+        When an anomaly ratio exceeds 1.5x to 2.0x seasonal normal, rivers approach bankfull stage and pose serious overbank flood hazards.
+      </p>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="glass-card">
+      <h3 class="card-title mb-2"><i class="bi bi-shield-check text-info"></i> Zero Fake Data Integrity Standard</h3>
+      <p class="text-muted small">
+        FLOODLENS adheres strictly to scientific data integrity. When a coordinate is located away from a modeled river reach, we <strong>never generate synthetic or simulated river numbers</strong>.
+      </p>
+      <p class="text-muted small mb-0">
+        Instead, our transparent Explainable AI Flood Risk Engine detects the absence of river data and mathematically reallocates the 25% river weight directly to 24h precipitation, storm burst intensity, and 3-day forecast rainfall.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    loadRiverData();
+    window.addEventListener('fl:locationChanged', () => loadRiverData());
+  });
+
+  function loadRiverData() {
+    const loc = FLOODLENS.getLocation();
+    fetch(`/api/flood?lat=${loc.lat}&lon=${loc.lon}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error);
+        const data = res.data;
+
+        const chartCard = document.getElementById('river-chart-card');
+        const alertCard = document.getElementById('no-river-alert');
+
+        if (data.has_river_data && data.chart_data && data.chart_data.dates.length > 0) {
+          chartCard.classList.remove('d-none');
+          alertCard.classList.add('d-none');
+
+          document.getElementById('river-current').textContent = data.current_discharge_m3s || '--';
+          document.getElementById('river-peak').textContent = data.peak_forecast_m3s || '--';
+          document.getElementById('river-mean').textContent = data.historical_mean_m3s || '--';
+          document.getElementById('river-anomaly').textContent = data.anomaly_ratio ? `${data.anomaly_ratio}x normal` : 'Normal';
+          document.getElementById('river-status-indicator').textContent = data.message;
+
+          FLOOD_CHARTS.renderRiverDischargeChart('riverHydrographChart', data.chart_data, data.historical_mean_m3s);
+        } else {
+          chartCard.classList.add('d-none');
+          alertCard.classList.remove('d-none');
+          document.getElementById('no-river-msg').textContent = data.message;
+
+          document.getElementById('river-current').textContent = 'N/A';
+          document.getElementById('river-peak').textContent = 'N/A';
+          document.getElementById('river-mean').textContent = 'N/A';
+          document.getElementById('river-anomaly').textContent = 'Re-weighted';
+          document.getElementById('river-status-indicator').textContent = 'Pluvial & drainage model active';
+        }
+      })
+      .catch(err => {
+        console.error("Error loading river data:", err);
+        FLOODLENS.showToast("Failed to fetch river discharge: " + err.message, "error");
+      });
+  }
+</script>
+{% endblock %}
+

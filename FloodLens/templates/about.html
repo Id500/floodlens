@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+
+{% block title %}About & Methodology - FLOODLENS{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h2 class="fw-bold mb-1 text-white">About FLOODLENS & Hydrological Methodology</h2>
+    <p class="text-muted small mb-0">Transparent scientific framework, open APIs, and mathematical attribution formulas.</p>
+  </div>
+</div>
+
+<!-- MISSION STATEMENT -->
+<div class="glass-card mb-4" style="border-left: 4px solid var(--accent-cyan);">
+  <h3 class="card-title mb-2"><i class="bi bi-bullseye text-info"></i> Project Mission</h3>
+  <p class="text-white small mb-2" style="line-height: 1.8;">
+    <strong>FLOODLENS</strong> is an open-source, satellite-backed flood monitoring and risk intelligence system designed for disaster management authorities, municipal emergency planners, and citizens in flood-vulnerable coastal and riverine settlements. By synthesizing NASA GIBS Earth observations, Copernicus GloFAS river routing, and high-frequency meteorological telemetry, FLOODLENS bridges the critical gap between raw satellite telemetry and explainable community risk mitigation.
+  </p>
+  <div class="d-flex flex-wrap gap-2 pt-2">
+    <span class="badge bg-dark text-info border border-info">Flask Architecture</span>
+    <span class="badge bg-dark text-info border border-info">No Streamlit</span>
+    <span class="badge bg-dark text-info border border-info">Explainable AI (XAI)</span>
+    <span class="badge bg-dark text-info border border-info">Zero Fake Data</span>
+    <span class="badge bg-dark text-info border border-info">Open-Source Leaflet GIS</span>
+  </div>
+</div>
+
+<!-- RISK ENGINE MATHEMATICAL FORMULATION -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="glass-card h-100">
+      <h3 class="card-title mb-3"><i class="bi bi-calculator text-info"></i> Explainable Multi-Factor Scoring Formulation</h3>
+      <p class="text-muted small mb-3">
+        Unlike unvalidated "black-box" machine learning algorithms that can fabricate outputs in unseen environments, FLOODLENS utilizes an <strong>Explainable Multi-Factor Hydrological Heuristic</strong> where every output point is mathematically attributed to verifiable physical inputs:
+      </p>
+
+      <div class="p-3 rounded mb-3 font-monospace small" style="background: rgba(11, 19, 43, 0.9); border: 1px solid var(--border-subtle); color: #38bdf8;">
+        Risk Score = &sum; (NormScore<sub>i</sub> &times; Weight<sub>i</sub>) &isin; [0, 100]
+      </div>
+
+      <div class="table-responsive">
+        <table class="glass-table">
+          <thead>
+            <tr>
+              <th>Risk Factor</th>
+              <th>Weight (With River)</th>
+              <th>Weight (No River Reach)</th>
+              <th>Physical Hydro Rationale</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>24h Precipitation Accumulation</strong></td>
+              <td class="text-info fw-bold">25%</td>
+              <td class="text-info fw-bold">35%</td>
+              <td class="text-muted small">Immediate volume loading municipal stormwater channels.</td>
+            </tr>
+            <tr>
+              <td><strong>3-Day Forecast Precipitation</strong></td>
+              <td class="text-info fw-bold">25%</td>
+              <td class="text-info fw-bold">35%</td>
+              <td class="text-muted small">Impending cloud system compounding standing water.</td>
+            </tr>
+            <tr>
+              <td><strong>Peak Rain Intensity (mm/h)</strong></td>
+              <td class="text-info fw-bold">15%</td>
+              <td class="text-info fw-bold">20%</td>
+              <td class="text-muted small">Cloudburst trigger exceeding urban percolation rate.</td>
+            </tr>
+            <tr>
+              <td><strong>River Discharge Anomaly</strong></td>
+              <td class="text-info fw-bold">25%</td>
+              <td class="text-warning fw-bold">0% (Re-allocated)</td>
+              <td class="text-muted small">Channel stage ratio against historical seasonal baseline.</td>
+            </tr>
+            <tr>
+              <td><strong>7-Day Antecedent Saturation</strong></td>
+              <td class="text-info fw-bold">10%</td>
+              <td class="text-info fw-bold">10%</td>
+              <td class="text-muted small">Soil moisture buffer and infiltration capacity proxy.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="glass-card h-100">
+      <h3 class="card-title mb-3"><i class="bi bi-shield-lock text-info"></i> Severity Classification Tiers</h3>
+      <div class="d-flex flex-column gap-3">
+        <div class="p-3 rounded" style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981;">
+          <div class="d-flex justify-content-between mb-1">
+            <strong class="text-white">LOW RISK (0 - 24)</strong>
+            <span class="badge bg-dark text-success">Normal</span>
+          </div>
+          <p class="small text-muted mb-0">
+            Stable drainage conditions; minor ponding in standard street dips; routine civic functioning.
+          </p>
+        </div>
+
+        <div class="p-3 rounded" style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b;">
+          <div class="d-flex justify-content-between mb-1">
+            <strong class="text-white">MODERATE RISK (25 - 49)</strong>
+            <span class="badge bg-dark text-warning">Advisory</span>
+          </div>
+          <p class="small text-muted mb-0">
+            Waterlogging across underpasses, service lanes, and poorly drained lowlands. Cautious vehicular traffic.
+          </p>
+        </div>
+
+        <div class="p-3 rounded" style="background: rgba(249, 115, 22, 0.1); border-left: 4px solid #f97316;">
+          <div class="d-flex justify-content-between mb-1">
+            <strong class="text-white">HIGH RISK (50 - 74)</strong>
+            <span class="badge bg-dark text-warning">Warning</span>
+          </div>
+          <p class="small text-muted mb-0">
+            Widespread street inundation, overflowing stormwater canals, ground-floor water entry in low elevations.
+          </p>
+        </div>
+
+        <div class="p-3 rounded" style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444;">
+          <div class="d-flex justify-content-between mb-1">
+            <strong class="text-white">SEVERE RISK (75 - 100)</strong>
+            <span class="badge bg-dark text-danger">Emergency</span>
+          </div>
+          <p class="small text-muted mb-0">
+            Catastrophic flood hazard; extreme torrential downpour, river out-of-bank breach, emergency evacuation protocol.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DATA PROVIDERS & SCIENTIFIC SOURCES -->
+<div class="glass-card mb-4">
+  <h3 class="card-title mb-3"><i class="bi bi-diagram-3 text-info"></i> Data Telemetry & API Architecture</h3>
+  <div class="row g-4">
+    <div class="col-md-3">
+      <div class="p-3 rounded h-100" style="background: rgba(16, 28, 56, 0.6); border: 1px solid var(--border-subtle);">
+        <h5 class="text-white fs-6 mb-2"><i class="bi bi-broadcast text-info me-1"></i> NASA GIBS</h5>
+        <p class="small text-muted mb-2">
+          Global Imagery Browse Services providing full-resolution Web Mercator (EPSG:3857) tiles for MODIS Terra (Bands 7-2-1), VIIRS SNPP, and GPM.
+        </p>
+        <span class="badge bg-dark text-info border border-info" style="font-size:0.7rem;">NASA EOSDIS Stream</span>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="p-3 rounded h-100" style="background: rgba(16, 28, 56, 0.6); border: 1px solid var(--border-subtle);">
+        <h5 class="text-white fs-6 mb-2"><i class="bi bi-cloud-drizzle text-info me-1"></i> Open-Meteo Weather</h5>
+        <p class="small text-muted mb-2">
+          High-frequency numerical weather models delivering hourly precipitation accumulation, cloudburst intensities, and 7-day projections.
+        </p>
+        <span class="badge bg-dark text-info border border-info" style="font-size:0.7rem;">Meteorological Models</span>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="p-3 rounded h-100" style="background: rgba(16, 28, 56, 0.6); border: 1px solid var(--border-subtle);">
+        <h5 class="text-white fs-6 mb-2"><i class="bi bi-water text-info me-1"></i> Open-Meteo GloFAS</h5>
+        <p class="small text-muted mb-2">
+          Global Flood API utilizing Copernicus GloFAS river hydrodynamics for 0.1° global river discharge simulation and historical baseline comparisons.
+        </p>
+        <span class="badge bg-dark text-info border border-info" style="font-size:0.7rem;">Copernicus Hydrodynamics</span>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="p-3 rounded h-100" style="background: rgba(16, 28, 56, 0.6); border: 1px solid var(--border-subtle);">
+        <h5 class="text-white fs-6 mb-2"><i class="bi bi-map text-info me-1"></i> OpenStreetMap & Esri</h5>
+        <p class="small text-muted mb-2">
+          Worldwide vector cartography, Nominatim spatial geocoding, and Esri Dark Slate basemaps for high-contrast geospatial disaster visualization.
+        </p>
+        <span class="badge bg-dark text-info border border-info" style="font-size:0.7rem;">Public Geospatial Layers</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCIENTIFIC DISCLAIMER -->
+<div class="glass-card" style="border: 1px solid rgba(245, 158, 11, 0.4);">
+  <h3 class="card-title text-warning mb-2"><i class="bi bi-exclamation-triangle text-warning"></i> Scientific Disclaimer & Hackathon Transparency Notice</h3>
+  <p class="small text-muted mb-2">
+    FLOODLENS is an experimental hackathon software application designed to demonstrate multi-source disaster data fusion. It is NOT certified as an official sole-source operational early-warning platform by governmental civil defense bodies.
+  </p>
+  <p class="small text-muted mb-0">
+    Ordinary optical satellite imagery reflects visible and infrared surface reflectance; it does NOT penetrate dense cloud cover during active storm systems and CANNOT alone confirm ground-truth flooding without radar (SAR) or field calibration. Crowdsourced reports are explicitly labeled as "Unverified" until corroborated by authorized emergency responders.
+  </p>
+</div>
+{% endblock %}
+

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FLOODLENS{% endblock %} | NASA Satellite Flood Intelligence</title>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Custom Dark Theme CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- SIDEBAR -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <a href="{{ url_for('index') }}" class="brand-badge">
+          <div class="brand-icon">
+            <i class="bi bi-water"></i>
+          </div>
+          <div>
+            <h1 class="brand-title">FLOODLENS</h1>
+            <span class="brand-sub">NASA GIBS Intelligence</span>
+          </div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Operations</div>
+        
+        <a href="{{ url_for('index') }}" class="nav-item-link {% if page_id == 'overview' %}active{% endif %}">
+          <i class="bi bi-speedometer2"></i>
+          <span>Overview</span>
+        </a>
+
+        <a href="{{ url_for('weather_page') }}" class="nav-item-link {% if page_id == 'weather' %}active{% endif %}">
+          <i class="bi bi-cloud-rain-heavy"></i>
+          <span>Weather Intelligence</span>
+        </a>
+
+        <a href="{{ url_for('satellite_page') }}" class="nav-item-link {% if page_id == 'satellite' %}active{% endif %}">
+          <i class="bi bi-broadcast-pin"></i>
+          <span>NASA Satellite Imagery</span>
+        </a>
+
+        <a href="{{ url_for('risk_page') }}" class="nav-item-link {% if page_id == 'risk' %}active{% endif %}">
+          <i class="bi bi-cpu"></i>
+          <span>Flood Risk Analysis</span>
+        </a>
+
+        <a href="{{ url_for('river_page') }}" class="nav-item-link {% if page_id == 'river' %}active{% endif %}">
+          <i class="bi bi-water"></i>
+          <span>River Discharge</span>
+        </a>
+
+        <div class="nav-section-title">Computer Vision & GIS</div>
+
+        <a href="{{ url_for('analysis_page') }}" class="nav-item-link {% if page_id == 'analysis' %}active{% endif %}">
+          <i class="bi bi-camera-reels"></i>
+          <span>Satellite Image Analysis</span>
+        </a>
+
+        <a href="{{ url_for('map_page') }}" class="nav-item-link {% if page_id == 'map' %}active{% endif %}">
+          <i class="bi bi-map"></i>
+          <span>Interactive Map</span>
+        </a>
+
+        <div class="nav-section-title">Civil Defense & Data</div>
+
+        <a href="{{ url_for('reports_page') }}" class="nav-item-link {% if page_id == 'reports' %}active{% endif %}">
+          <i class="bi bi-megaphone"></i>
+          <span>Community Reports</span>
+        </a>
+
+        <a href="{{ url_for('about_page') }}" class="nav-item-link {% if page_id == 'about' %}active{% endif %}">
+          <i class="bi bi-info-circle"></i>
+          <span>About & Methodology</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span><i class="bi bi-circle-fill text-success me-1" style="font-size: 0.55rem;"></i> GIBS Stream Live</span>
+          <span class="badge bg-dark text-info">v2.4</span>
+        </div>
+        <div class="text-muted" style="font-size: 0.7rem;">
+          NASA Earthdata & Open-Meteo
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN WRAPPER -->
+    <div class="app-main">
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="d-flex align-items-center gap-3">
+          <button class="btn btn-outline-glass d-lg-none" id="sidebar-toggle-btn">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <!-- Active Location Chip -->
+          <div class="location-chip" data-bs-toggle="modal" data-bs-target="#locationModal" title="Click to change location or enter coordinates">
+            <i class="bi bi-geo-alt-fill"></i>
+            <span id="current-location-text">{{ default_location_name }}</span>
+            <span class="coords-badge" id="current-coords-text">{{ default_lat }}°, {{ default_lon }}°</span>
+            <i class="bi bi-chevron-down text-muted" style="font-size: 0.75rem;"></i>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+          <!-- Search box with geocoding -->
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" id="global-search-input" class="search-input" placeholder="Search city or region globally..." autocomplete="off">
+            <div id="search-results-box" class="search-results-dropdown"></div>
+          </div>
+
+          <!-- Quick Presets Button -->
+          <button class="btn btn-outline-glass" data-bs-toggle="modal" data-bs-target="#locationModal">
+            <i class="bi bi-sliders me-1"></i> Locations
+          </button>
+        </div>
+      </header>
+
+      <!-- PAGE CONTENT CONTAINER -->
+      <main class="page-container">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <!-- LOCATION SELECTION MODAL -->
+  <div class="modal fade" id="locationModal" tabindex="-1" aria-labelledby="locationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card" style="border: 1px solid var(--border-glow); background: #0f1c3a;">
+        <div class="modal-header border-bottom border-secondary">
+          <h5 class="modal-title card-title" id="locationModalLabel">
+            <i class="bi bi-geo-alt text-info me-2"></i> Select Monitoring Location
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-3">Popular Flood-Prone Regions</h6>
+          <div class="d-flex flex-column gap-2 mb-4">
+            {% for preset in preset_locations %}
+            <button class="btn btn-outline-glass text-start d-flex justify-content-between align-items-center py-2" 
+                    onclick="selectLocation({{ preset.latitude }}, {{ preset.longitude }}, '{{ preset.name }}')">
+              <div>
+                <strong class="d-block text-white">{{ preset.name }}</strong>
+                <small class="text-muted" style="font-size: 0.72rem;">{{ preset.description }}</small>
+              </div>
+              <span class="badge bg-dark text-info ms-2">{{ preset.latitude }}, {{ preset.longitude }}</span>
+            </button>
+            {% endfor %}
+          </div>
+
+          <hr class="border-secondary my-3">
+
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Custom Coordinates</h6>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="small text-muted mb-1">Latitude (-90 to +90)</label>
+              <input type="number" step="0.0001" id="modal-custom-lat" class="glass-input" placeholder="e.g. 13.0827">
+            </div>
+            <div class="col-6">
+              <label class="small text-muted mb-1">Longitude (-180 to +180)</label>
+              <input type="number" step="0.0001" id="modal-custom-lon" class="glass-input" placeholder="e.g. 80.2707">
+            </div>
+            <div class="col-12 mt-2">
+              <label class="small text-muted mb-1">Location Label (Optional)</label>
+              <input type="text" id="modal-custom-name" class="glass-input" placeholder="e.g. Custom Monitoring Site">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-top border-secondary">
+          <button type="button" class="btn btn-outline-glass" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-cyan" onclick="applyCustomCoordinates()">Apply Coordinates</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Core App Scripts -->
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+
+  <script>
+    function selectLocation(lat, lon, name) {
+      FLOODLENS.setLocation(lat, lon, name);
+      const modal = bootstrap.Modal.getInstance(document.getElementById('locationModal'));
+      if (modal) modal.hide();
+      FLOODLENS.showToast(`Monitoring focus shifted to ${name}`, 'success');
+    }
+
+    function applyCustomCoordinates() {
+      const lat = parseFloat(document.getElementById('modal-custom-lat').value);
+      const lon = parseFloat(document.getElementById('modal-custom-lon').value);
+      const name = document.getElementById('modal-custom-name').value.trim() || `Custom (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+
+      if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        alert("Please enter valid latitude (-90 to 90) and longitude (-180 to 180).");
+        return;
+      }
+
+      selectLocation(lat, lon, name);
+    }
+  </script>
+
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+

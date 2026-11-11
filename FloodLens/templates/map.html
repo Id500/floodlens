@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}Interactive Flood Map - FLOODLENS{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h2 class="fw-bold mb-1 text-white">Interactive Geospatial Flood Map</h2>
+    <p class="text-muted small mb-0">Click anywhere on the map to evaluate coordinates, view NASA GIBS layers, and explore community reports.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-glass btn-sm" onclick="centerOnActiveLocation()">
+      <i class="bi bi-crosshair me-1"></i> Focus Active Focus
+    </button>
+  </div>
+</div>
+
+<!-- FULL MAP WRAPPER WITH FLOATING HUD -->
+<div class="glass-card p-2 position-relative" style="height: calc(100vh - 180px); min-height: 580px;">
+  <div id="full-interactive-map" style="width: 100%; height: 100%; border-radius: 12px;"></div>
+
+  <!-- FLOATING HUD SUMMARY CARD -->
+  <div class="position-absolute top-0 start-0 m-4 p-3 glass-card" style="z-index: 1000; width: 280px; background: rgba(11, 19, 43, 0.92); border: 1px solid var(--border-glow);">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="text-muted small text-uppercase fw-bold">Active Station</span>
+      <span class="badge-risk badge-low" id="hud-risk-badge" style="font-size:0.7rem; padding:2px 8px;">LOW</span>
+    </div>
+    <div class="fw-bold text-white fs-6 mb-1 text-truncate" id="hud-location-name">Chennai, Tamil Nadu</div>
+    <div class="small text-muted font-monospace mb-2" id="hud-coords">13.0827°, 80.2707°</div>
+    <div class="d-flex justify-content-between border-top border-secondary pt-2 small">
+      <span class="text-muted">Risk Score:</span>
+      <strong class="text-info" id="hud-risk-score">-- / 100</strong>
+    </div>
+    <div class="d-flex justify-content-between small">
+      <span class="text-muted">24h Rainfall:</span>
+      <strong class="text-white" id="hud-rainfall">-- mm</strong>
+    </div>
+    <div class="mt-2 text-center pt-2 border-top border-secondary">
+      <small class="text-muted" style="font-size:0.68rem;">Click anywhere on map to drop pin</small>
+    </div>
+  </div>
+
+  <!-- FLOATING MAP LEGEND -->
+  <div class="map-legend">
+    <div class="fw-bold text-white mb-2" style="font-size: 0.8rem;">Geospatial Legend</div>
+    <div class="legend-item">
+      <div class="legend-color-box" style="background:#00f0ff;"></div>
+      <span>Active Monitoring Beacon</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color-box" style="background:#10b981;"></div>
+      <span>Minor Flood Report</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color-box" style="background:#f59e0b;"></div>
+      <span>Moderate Flood Report</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color-box" style="background:#f97316;"></div>
+      <span>Severe Flood Report</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color-box" style="background:#ef4444;"></div>
+      <span>Critical Emergency Report</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color-box" style="background:#0f172a; border:1px solid #38bdf8;"></div>
+      <span>GIBS False Color (Dark = Water)</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let fullMap = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    fullMap = FLOOD_MAP.init('full-interactive-map', { zoom: 11, enableClickSelection: true });
+    updateHUD();
+
+    window.addEventListener('fl:locationChanged', () => {
+      updateHUD();
+      centerOnActiveLocation();
+    });
+  });
+
+  function centerOnActiveLocation() {
+    if (!fullMap) return;
+    const loc = FLOODLENS.getLocation();
+    fullMap.panTo([loc.lat, loc.lon]);
+  }
+
+  function updateHUD() {
+    const loc = FLOODLENS.getLocation();
+    document.getElementById('hud-location-name').textContent = loc.name;
+    document.getElementById('hud-coords').textContent = `${loc.lat.toFixed(4)}°, ${loc.lon.toFixed(4)}°`;
+
+    fetch(`/api/risk?lat=${loc.lat}&lon=${loc.lon}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) return;
+        const data = res.data;
+
+        document.getElementById('hud-risk-score').textContent = `${data.risk_score} / 100`;
+        const badge = document.getElementById('hud-risk-badge');
+        badge.className = `badge-risk ${data.badge_class}`;
+        badge.textContent = data.classification;
+      });
+
+    fetch(`/api/weather?lat=${loc.lat}&lon=${loc.lon}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) return;
+        document.getElementById('hud-rainfall').textContent = `${res.data.metrics.precip_24h_accum} mm`;
+      });
+  }
+</script>
+{% endblock %}
+

@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block title %}NASA Satellite Imagery - FLOODLENS{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h2 class="fw-bold mb-1 text-white">NASA GIBS Satellite Earth Observation</h2>
+    <p class="text-muted small mb-0">High-resolution Earth observation mosaics from NASA Global Imagery Browse Services.</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge bg-dark text-info border border-info p-2 px-3">
+      <i class="bi bi-broadcast text-info me-1"></i> Live Satellite Stream
+    </span>
+    <span class="badge bg-dark text-white border border-secondary p-2 px-3">
+      <i class="bi bi-shield-check text-success me-1"></i> Public Feed
+    </span>
+  </div>
+</div>
+
+<!-- CONTROLS & METADATA -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-8">
+    <div class="glass-card">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="small text-muted mb-1 fw-bold">Satellite Imagery Layer</label>
+          <select id="gibs-layer-select" class="glass-select" onchange="updateGibsView()">
+            {% for layer in metadata.layers %}
+            <option value="{{ layer.id }}" {% if layer.id == metadata.selected_layer %}selected{% endif %}>
+              {{ layer.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label class="small text-muted mb-1 fw-bold">Observation Date</label>
+          <input type="date" id="gibs-date-input" class="glass-input" value="{{ metadata.selected_date }}" onchange="updateGibsView()">
+        </div>
+
+        <div class="col-md-3">
+          <button class="btn btn-cyan w-100" onclick="updateGibsView()">
+            <i class="bi bi-arrow-repeat me-1"></i> Load Layer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="glass-card h-100 d-flex flex-column justify-content-center">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-primary text-white">NASA EOSDIS</span>
+        <span class="badge bg-dark text-info">Daily Global Coverage</span>
+      </div>
+      <div class="small text-muted" id="layer-description-text">
+        {{ metadata.active_layer_meta.description }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INTERACTIVE MAP WITH GIBS OVERLAY -->
+<div class="glass-card mb-4 p-2">
+  <div id="satellite-map" class="map-container" style="height: 560px;"></div>
+</div>
+
+<!-- SATELLITE MISSION SPECIFICATIONS (Clean Presentation, No Raw Code or Endpoints) -->
+<div class="row g-4 mb-4">
+  <div class="col-md-3">
+    <div class="glass-card h-100">
+      <div class="text-muted small text-uppercase mb-1">Observation Orbit</div>
+      <div class="fs-5 fw-bold text-white mb-1"><i class="bi bi-globe-americas text-info me-1"></i> Sun-Synchronous</div>
+      <div class="small text-muted">Polar low-Earth orbit providing uniform solar illumination angles.</div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="glass-card h-100">
+      <div class="text-muted small text-uppercase mb-1">Temporal Cadence</div>
+      <div class="fs-5 fw-bold text-info mb-1"><i class="bi bi-clock-history text-info me-1"></i> 1 - 2 Passes Daily</div>
+      <div class="small text-muted">Daily global daylight coverage captured during morning and afternoon flyovers.</div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="glass-card h-100">
+      <div class="text-muted small text-uppercase mb-1">Nominal Resolution</div>
+      <div class="fs-5 fw-bold text-white mb-1"><i class="bi bi-grid-3x3 text-info me-1"></i> 250m - 500m</div>
+      <div class="small text-muted">Optimized for regional watershed and metropolitan flood corridor tracking.</div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="glass-card h-100">
+      <div class="text-muted small text-uppercase mb-1">Band Processing</div>
+      <div class="fs-5 fw-bold text-warning mb-1"><i class="bi bi-palette text-warning me-1"></i> Multi-Spectral</div>
+      <div class="small text-muted">SWIR, NIR, and visible reflectance combinations isolating standing water.</div>
+    </div>
+  </div>
+</div>
+
+<!-- SCIENTIFIC GUIDANCE & OPTICAL LIMITATIONS -->
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h3 class="card-title mb-2"><i class="bi bi-info-circle text-info"></i> False Color (Bands 7-2-1) Science</h3>
+      <p class="text-muted small">
+        In the MODIS 7-2-1 composite, shortwave infrared (Band 7), near-infrared (Band 2), and red (Band 1) are assigned to Red, Green, and Blue channels respectively.
+      </p>
+      <ul class="text-muted small mb-0">
+        <li><strong class="text-white">Water & Flooding:</strong> Water absorbs infrared radiation strongly and appears <strong>very dark blue to deep black</strong>.</li>
+        <li><strong class="text-white">Vegetation:</strong> Chlorophyll reflects NIR radiation brilliantly, rendering land vegetation in <strong>vibrant neon green</strong>.</li>
+        <li><strong class="text-white">Sediment & Mud:</strong> Suspended particulates cause turbid floodwaters to exhibit light cyan or brownish tones.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="glass-card h-100" style="border-left: 4px solid var(--accent-cyan);">
+      <h3 class="card-title mb-2"><i class="bi bi-shield-exclamation text-warning"></i> Scientific Distinction & Cloud Cover</h3>
+      <div class="alert alert-dark border-0 p-3 mb-2" style="background: rgba(16, 28, 56, 0.8);">
+        <p class="small text-white mb-0">
+          <strong>Important Disciplinary Integrity:</strong> Ordinary optical satellite reflectance alone DOES NOT confirm emergency flooding. During active typhoons or monsoons, optical satellites cannot see through dense cloud decks. Certified disaster management requires Synthetic Aperture Radar (SAR / Sentinel-1) or validated hydrological sensors.
+        </p>
+      </div>
+      <p class="text-muted small mb-0">
+        GIBS true and false color layers provide synoptic environmental context before and after cyclone passes.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let satMap = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    satMap = FLOOD_MAP.init('satellite-map', { zoom: 9, enableClickSelection: true, enableGibsByDefault: true });
+    updateGibsView();
+
+    window.addEventListener('fl:locationChanged', () => {
+      const loc = FLOODLENS.getLocation();
+      satMap.panTo([loc.lat, loc.lon]);
+    });
+  });
+
+  function updateGibsView() {
+    const layerSelect = document.getElementById('gibs-layer-select');
+    const dateInput = document.getElementById('gibs-date-input');
+    const layerId = layerSelect.value;
+    const dateStr = dateInput.value;
+
+    FLOOD_MAP.setGibsLayer(layerId, dateStr);
+
+    fetch(`/api/satellite?layer=${layerId}&date=${dateStr}`)
+      .then(res => res.json())
+      .then(res => {
+        if (res.success && res.data.active_layer_meta) {
+          document.getElementById('layer-description-text').textContent = res.data.active_layer_meta.description;
+        }
+      });
+
+    FLOODLENS.showToast(`Satellite layer loaded for ${dateStr}`, 'info');
+  }
+</script>
+{% endblock %}
